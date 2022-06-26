@@ -1,7 +1,7 @@
 import {  DataTypes } from 'sequelize';
 import sequelize from '../connection/index.js';
 
-export const User=sequelize.define('users',{
+export const Budget = sequelize.define('budgets', {
     id:{
         type:DataTypes.INTEGER,
         primaryKey:true,
@@ -11,13 +11,12 @@ export const User=sequelize.define('users',{
         type:DataTypes.STRING,
         allowNull:false
     },
-    email:{
-        type:DataTypes.STRING,
-        allowNull:false,
-        unique:true
-    },
-    password:{
-        type:DataTypes.STRING,
+    amount:{
+        type:DataTypes.DECIMAL,
         allowNull:false
     },
+    remaining:{
+        type:DataTypes.DECIMAL,
+        allowNull:false
+    }
 });
