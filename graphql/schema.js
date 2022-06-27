@@ -71,6 +71,10 @@ export const typeDefs = gql`
     type Query{
         #Users
         getAuthUser: User
+
+        #Budgets
+        getBudgetsByUser: [Budget]
+        getBudget(id: ID!): Budget
     }
 
     type Mutation{

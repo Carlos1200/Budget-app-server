@@ -6,6 +6,7 @@ import { User,Category,Budget,User_Category,Transaction } from "../models/index.
 
 export const resolvers = {
     Query: {
+        // ? Start of User Queries
         getAuthUser:async (_, {}, ctx) => {
             if (!ctx.user) {
                 return new Error("You are not authenticated");
@@ -20,9 +21,46 @@ export const resolvers = {
             } catch (error) {
                 return new Error("Something went wrong");
             }
+        },
+        getBudgetsByUser:async (_, {}, ctx) => {
+            if (!ctx.user) {
+                return new Error("You are not authenticated");
+            }
+            try {
+                //get budgets ids from user_categories distinct on budget_id
+                const budgetsIds=await User_Category.findAll({
+                    attributes: ['budget_id'],
+                    where: {
+                        user_id: ctx.user.id
+                    },
+                    group: ['budget_id']
+                });
+
+                const budgets=await Budget.findAll({
+                    where:{
+                        id:budgetsIds.map(budget_id=>budget_id.budget_id)
+                    }
+                });
+                return budgets;
+            } catch (error) {
+                console.log({error});
+                return new Error("Something went wrong");
+            }
+        },
+        getBudget:async (_, {id}, ctx) => {
+            if (!ctx.user) {
+                return new Error("You are not authenticated");
+            }
+            try {
+                const budget=await Budget.findByPk(id);
+                return budget;
+            } catch (error) {
+                return new Error("Something went wrong");
+            }
         }
     },
     Mutation: {
+        // ? Start of User Mutations
         registerUser:async(_,{user})=>{
             try {
 

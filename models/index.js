@@ -53,3 +53,7 @@ Budget.belongsToMany(User, {
 Category.hasMany(Transaction, {foreignKey: 'category_id'});
 
 User_Category.belongsTo(Category, {foreignKey: 'category_id'});
+
+User_Category.belongsTo(User, {foreignKey: 'user_id'});
+
+User_Category.belongsTo(Budget, {foreignKey: 'budget_id'});
