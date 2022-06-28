@@ -1,6 +1,6 @@
 import bcryptjs from "bcryptjs";
 import { createToken } from "../helpers/createToken.js";
-import { User,Category,Budget,User_Category,Transaction } from "../models/index.js";
+import { User,Category,Budget,Transaction } from "../models/index.js";
 
 
 
@@ -27,23 +27,13 @@ export const resolvers = {
                 return new Error("You are not authenticated");
             }
             try {
-                //get budgets ids from user_categories distinct on budget_id
-                const budgetsIds=await User_Category.findAll({
-                    attributes: ['budget_id'],
-                    where: {
-                        user_id: ctx.user.id
-                    },
-                    group: ['budget_id']
-                });
-
                 const budgets=await Budget.findAll({
                     where:{
-                        id:budgetsIds.map(budget_id=>budget_id.budget_id)
-                    }
+                        user_id:ctx.user.id
+                    },
                 });
                 return budgets;
             } catch (error) {
-                console.log({error});
                 return new Error("Something went wrong");
             }
         },
@@ -52,7 +42,11 @@ export const resolvers = {
                 return new Error("You are not authenticated");
             }
             try {
-                const budget=await Budget.findByPk(id);
+                const budget=await Budget.findByPk(id,{
+                    include:[{
+                        model:Category,
+                    }]
+                });
                 return budget;
             } catch (error) {
                 return new Error("Something went wrong");
@@ -114,23 +108,35 @@ export const resolvers = {
                 return new Error("Something went wrong");
             }
         },
-        createBudget:async(_,{budget})=>{
+        createBudget:async(_,{budget},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
                 if(budget.amount<0){
                     return new Error("Amount cannot be negative");
                 }
                 const newBudget=await Budget.create({
                     name:budget.name,
                     amount:budget.amount,
-                    remaining:budget.amount
+                    remaining:budget.amount,
+                    user_id:ctx.user.id
+                },{
+                    attributes: {
+                        exclude: ["user_id"]
+                    }
                 });
                 return newBudget;
             } catch (error) {
+                console.log({error});
                 return new Error("Something went wrong");
             }
         },
-        updateBudget:async(_,{budget,id})=>{
+        updateBudget:async(_,{budget,id},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
                 if(budget.amount<0){
                     return new Error("Amount cannot be negative");
                 }
@@ -141,51 +147,31 @@ export const resolvers = {
                     return new Error("Budget does not exist");
                 }
 
-                if(budget.amount!==budgetExists.amount){
-                    return new Error("You cannot change the amount of a budget");
-                }
+                const rest =budget.amount- budgetExists.amount;
+                budget.remaining=budgetExists.remaining+rest;
+                
                 
                 const updatedBudget=await Budget.update(budget,{
                     where:{
                         id
                     },
-                    returning:true
+                    returning:true,
                 });
                 return updatedBudget[1][0];
             } catch (error) {
                 return new Error("Something went wrong");
             }
         },
-        deleteBudget:async(_,{id})=>{
+        deleteBudget:async(_,{id},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
                 //verify if budget exists
                 const budgetExists=await Budget.findByPk(id);
                 if(!budgetExists){
                     return new Error("Budget does not exist");
                 }
-                //delete all categories associated with budget
-                const categories=await User_Category.findAll({
-                    where:{
-                        budget_id:id
-                    },
-                    include:[{
-                        model:Category,
-                    }]
-                });
-                
-                await User_Category.destroy({
-                    where:{
-                        budget_id:id
-                    }
-                });
-                for(let i=0;i<categories.length;i++){
-                    await Category.destroy({
-                        where:{
-                            id:categories[i].category_id
-                        }
-                    });
-                }
-                
                 //delete budget
                 await Budget.destroy({
                     where:{
@@ -194,19 +180,16 @@ export const resolvers = {
                 });
                 return "Budget deleted";
             } catch (error) {
-                console.log({error});
                 return new Error("Something went wrong");
             }
         },
         createCategory:async(_,{category},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
                 const newCategory=await Category.create({
                     name:category.name,
-                    budget_id:category.budget_id
-                });
-                await User_Category.create({
-                    user_id:ctx.user.id,
-                    category_id:newCategory.id,
                     budget_id:category.budget_id
                 });
                 return newCategory;
@@ -214,8 +197,11 @@ export const resolvers = {
                 return new Error("Something went wrong");
             }
         },
-        updateCategory:async(_,{id,name})=>{
+        updateCategory:async(_,{id,name},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
                 const category=await Category.findByPk(id);
                 if(!category){
                     return new Error("Category does not exist");
@@ -227,26 +213,27 @@ export const resolvers = {
                 return new Error("Something went wrong");
             }
         },
-        deleteCategory:async(_,{id})=>{
+        deleteCategory:async(_,{id},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
                 const category=await Category.findByPk(id);
                 if(!category){
                     return new Error("Category does not exist");
                 }
                 //delete all user_categories with this category
-                await User_Category.destroy({
-                    where:{
-                        category_id:id
-                    }
-                });
                 await category.destroy();
                 return "Category deleted";
             } catch (error) {
                 return new Error("Something went wrong");
             }
         },
-        createTransaction:async(_,{transaction})=>{
+        createTransaction:async(_,{transaction},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
                 if(transaction.amount<0){
                     return new Error("Amount cannot be negative");
                 }
@@ -257,13 +244,7 @@ export const resolvers = {
                     return new Error("Category does not exist");
                 }
 
-                const budget=await User_Category.findOne({
-                    where:{
-                        category_id:categoryExists.id
-                    }
-                });
-
-                const budgetExists=await Budget.findByPk(budget.budget_id);
+                const budgetExists=await Budget.findByPk(categoryExists.budget_id);
                 
                 if(transaction.amount>budgetExists.remaining){
                     return new Error("Amount exceeds budget amount");
@@ -278,12 +259,14 @@ export const resolvers = {
                 });
                 return newTransaction;
             } catch (error) {
-                console.log({error});
                 return new Error("Something went wrong");
             }
         },
-        updateTransaction:async(_,{transaction,id})=>{
+        updateTransaction:async(_,{transaction,id},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
 
                 if(transaction.amount<0){
                     return new Error("Amount cannot be negative");
@@ -297,12 +280,7 @@ export const resolvers = {
 
                 const category=await Category.findByPk(transactionExists.category_id);
 
-                const budget=await User_Category.findOne({
-                    where:{
-                        category_id:category.id
-                    }
-                });
-                const budgetExists=await Budget.findByPk(budget.budget_id);
+                const budgetExists=await Budget.findByPk(category.budget_id);
 
                 const amount=budgetExists.remaining+transactionExists.amount;
                 if(transaction.amount>amount){
@@ -324,8 +302,11 @@ export const resolvers = {
                 return new Error("Something went wrong");
             }
         },
-        deleteTransaction:async(_,{id})=>{
+        deleteTransaction:async(_,{id},ctx)=>{
             try {
+                if(!ctx.user){
+                    return new Error("You are not authenticated");
+                }
                 //verify if transaction exists
                 const transactionExists=await Transaction.findByPk(id);
                 if(!transactionExists){
@@ -334,12 +315,7 @@ export const resolvers = {
 
                 const category=await Category.findByPk(transactionExists.category_id);
                 
-                const budget=await User_Category.findOne({
-                    where:{
-                        category_id:category.id
-                    }
-                });
-                const budgetExists=await Budget.findByPk(budget.budget_id);
+                const budgetExists=await Budget.findByPk(category.budget_id);
 
                 budgetExists.remaining+=transactionExists.amount;
                 await budgetExists.save();

@@ -17,18 +17,19 @@ export const typeDefs = gql`
         token: String
     }
 
-    type Budget{
+    type Category{
         id: ID
-        amount: Float
-        remaining: Float
         name: String
         createdAt: String
         updatedAt: String
     }
 
-    type Category{
+    type Budget{
         id: ID
+        amount: Float
+        remaining: Float
         name: String
+        categories:[Category]
         createdAt: String
         updatedAt: String
     }

@@ -11,4 +11,12 @@ export const Category = sequelize.define('categories', {
         type:DataTypes.STRING,
         allowNull:false
     },
+    budget_id:{
+        type:DataTypes.INTEGER,
+        allowNull:false,
+        references:{
+            model:'budgets',
+            key:'id'
+        }
+    }
 });

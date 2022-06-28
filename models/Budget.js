@@ -18,5 +18,13 @@ export const Budget = sequelize.define('budgets', {
     remaining:{
         type:DataTypes.DECIMAL,
         allowNull:false
+    },
+    user_id:{
+        type:DataTypes.INTEGER,
+        allowNull:false,
+        references:{
+            model:'users',
+            key:'id'
+        }
     }
 });
