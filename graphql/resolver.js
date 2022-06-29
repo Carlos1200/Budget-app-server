@@ -45,6 +45,9 @@ export const resolvers = {
                 const budget=await Budget.findByPk(id,{
                     include:[{
                         model:Category,
+                        include:[{  
+                            model:Transaction,
+                        }]
                     }]
                 });
                 return budget;

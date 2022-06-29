@@ -20,6 +20,7 @@ export const typeDefs = gql`
     type Category{
         id: ID
         name: String
+        transactions: [Transaction]
         createdAt: String
         updatedAt: String
     }
